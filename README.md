@@ -1,8 +1,13 @@
 # Simple Video Cut
 
+[![Live Version](https://img.shields.io/badge/Live-GitHub%20Pages-blue?style=flat-square)](https://dev-dhg.github.io/simple-video-cut/)
+[![Release](https://img.shields.io/github/v/release/dev-dhg/simple-video-cut?style=flat-square)](https://github.com/dev-dhg/simple-video-cut/releases)
+
 ![Simple Video Cut Screenshot](docs/screenshot.jpg)
 
 **Simple Video Cut** is a professional, high-performance desktop application built with Electron and React designed for ultra-fast video segment extraction. It leverages the power of native FFmpeg for lossless cutting (Direct Stream Copy) and high-speed hardware-accelerated encoding, while providing a seamless browser-based WASM fallback for maximum portability.
+
+> This entire project was built with **Google Antigravity** using a combination of **Gemini 3/3.1 Pro**, This is a **vibe project** and will continue to be developed this way.
 
 ## 🚀 Key Features
 
