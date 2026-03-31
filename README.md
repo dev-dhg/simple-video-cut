@@ -50,4 +50,7 @@ npm run electron:build
 ```
 
 ## 📄 License
-This project is for internal use. All rights reserved.
+
+This project is licensed under the MIT License - see circular [LICENSE](LICENSE) for details.
+
+Developed with ❤️ by **dev-dhg**.
