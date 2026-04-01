@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useAppStore } from '../../store';
-import { Settings, Video, Download, Save, Upload, Trash2, Play, Pause } from 'lucide-react';
+import { Settings, Video, Download, Save, Upload, Trash2, Play, Pause, ChevronDown, FileVideo } from 'lucide-react';
 import { saveProject, parseProject } from '../../lib/projectParser';
 import { runFFmpegExport } from '../../lib/ffmpegRunner';
 import { formatTimeCode } from '../../lib/formatters';
@@ -34,6 +34,7 @@ const Sidebar: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const isElectron = navigator.userAgent.toLowerCase().indexOf(' electron/') > -1;
 
@@ -88,15 +89,21 @@ const Sidebar: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleExport = async () => {
+  const handleExport = async (segmentOverride?: typeof segments) => {
     setIsExporting(true);
     setProgress(0);
+    setIsDropdownOpen(false);
     try {
-      const blob = await runFFmpegExport(state, (p) => setProgress(p), console.log);
+      const blob = await runFFmpegExport(state, (p) => setProgress(p), console.log, segmentOverride);
       
+      const isSingle = segmentOverride && segmentOverride.length === 1;
+      const downloadName = isSingle 
+        ? `${fileName?.replace(/\.[^/.]+$/, "") || 'video'}_${segmentOverride[0].name.replace(/\s+/g, '_')}.mp4`
+        : `exported_${fileName || 'video.mp4'}`;
+
       if (isElectron) {
         const result = await window.electronAPI.invoke('show-save-dialog', {
-          defaultPath: `exported_${fileName || 'video.mp4'}`,
+          defaultPath: downloadName,
           filters: [{ name: 'Video', extensions: ['mp4'] }]
         });
         if (!result.canceled && result.filePath) {
@@ -112,14 +119,75 @@ const Sidebar: React.FC = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `exported_${fileName || 'video.mp4'}`;
+        a.download = downloadName;
         a.click();
+        URL.revokeObjectURL(url);
       }
     } catch(err: any) {
       console.error(err);
       addToast(err.message || 'Export failed', "error");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleExportSeparated = async () => {
+    if (segments.length === 0) return;
+    setIsExporting(true);
+    setProgress(0);
+    setIsDropdownOpen(false);
+
+    try {
+      if (isElectron) {
+        const dirResult = await window.electronAPI.invoke('show-open-dialog', {
+          properties: ['openDirectory', 'createDirectory']
+        });
+        
+        if (dirResult.canceled || dirResult.filePaths.length === 0) {
+          setIsExporting(false);
+          return;
+        }
+
+        const destDir = dirResult.filePaths[0];
+        for (let i = 0; i < segments.length; i++) {
+          const seg = segments[i];
+          setProgress(i / segments.length);
+          const blob = await runFFmpegExport(state, (p) => setProgress((i + p) / segments.length), console.log, [seg]);
+          
+          const segName = seg.name.replace(/[\\/:*?"<>|]/g, "_");
+          const outName = `${fileName?.replace(/\.[^/.]+$/, "") || 'video'}_part${i+1}_${segName}.mp4`;
+          const outPath = `${destDir}/${outName}`;
+          
+          const arrayBuffer = await blob.arrayBuffer();
+          await window.electronAPI.invoke('fs-write-file', { 
+            filePath: outPath, 
+            data: arrayBuffer 
+          });
+        }
+        addToast(`Exported ${segments.length} segments to folder.`, "success");
+      } else {
+        addToast("Exporting multiple files. Please allow multiple downloads if prompted.", "warning");
+        for (let i = 0; i < segments.length; i++) {
+          const seg = segments[i];
+          const blob = await runFFmpegExport(state, (p) => setProgress((i + p) / segments.length), console.log, [seg]);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const segName = seg.name.replace(/\s+/g, '_');
+          a.download = `${fileName?.replace(/\.[^/.]+$/, "") || 'video'}_part${i+1}_${segName}.mp4`;
+          a.click();
+          // Small delay to help browser handle multiple clicks
+          await new Promise(r => setTimeout(r, 500));
+          URL.revokeObjectURL(url);
+        }
+        addToast("All segments exported!", "success");
+      }
+    } catch(err: any) {
+      console.error(err);
+      addToast(err.message || 'Separated export failed', "error");
+    } finally {
+      setIsExporting(false);
+      setProgress(1);
     }
   };
 
@@ -267,6 +335,9 @@ const Sidebar: React.FC = () => {
                      }} title={isPlaying && playUntil === seg.end ? "Pause Segment" : "Play Segment"}>
                      {isPlaying && playUntil === seg.end ? <><Pause size={12}/> Pause</> : <><Play size={12}/> Play</>}
                    </button>
+                   <button className="download-btn-sidebar" onClick={(e) => { e.stopPropagation(); handleExport([seg]); }} title="Download this segment">
+                     <Download size={12}/> Download
+                   </button>
                    <button className="del-btn-sidebar" onClick={(e) => { e.stopPropagation(); removeSegment(i); }} title="Delete Segment">
                      <Trash2 size={12}/> Delete
                    </button>
@@ -279,9 +350,38 @@ const Sidebar: React.FC = () => {
       </div>
 
       <div className="section export-section">
-         <button className="export-btn fluid glow" onClick={handleExport} disabled={segments.length === 0 || !mediaUri || isExporting}>
-           {isExporting ? `Exporting (${(progress * 100).toFixed(0)}%)...` : <><Download size={18} /> Execute Export</>}
-         </button>
+         <div className="export-split-button">
+            <button 
+              className="export-btn export-main-btn" 
+              onClick={() => handleExport()} 
+              disabled={segments.length === 0 || !mediaUri || isExporting}
+            >
+              {isExporting ? (
+                `Exporting (${(progress * 100).toFixed(0)}%)...`
+              ) : (
+                <><Download size={18} /> Execute Export</>
+              )}
+            </button>
+            <button 
+              className="export-dropdown-trigger" 
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              disabled={segments.length === 0 || !mediaUri || isExporting}
+              title="More export options"
+            >
+              <ChevronDown size={18} />
+            </button>
+
+            {isDropdownOpen && (
+              <div className="export-dropdown-menu glass-panel">
+                <button className="dropdown-item" onClick={() => handleExport()}>
+                  <Download size={16} /> Export All (Merged)
+                </button>
+                <button className="dropdown-item" onClick={handleExportSeparated}>
+                  <FileVideo size={16} /> Export Segments Separately
+                </button>
+              </div>
+            )}
+         </div>
       </div>
     </div>
   );

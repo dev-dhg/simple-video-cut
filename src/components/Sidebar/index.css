@@ -231,7 +231,7 @@
   cursor: pointer;
   gap: 0.75rem;
   transition: all var(--transition-normal);
-  box-shadow: 0 4px 15px rgba(107, 76, 255, 0.3);
+  border: none;
 }
 
 .segment-card.dragging {
@@ -290,8 +290,6 @@
 
 .export-btn:hover:not(:disabled) {
   background: var(--color-accent-hover);
-  box-shadow: 0 0 25px rgba(107, 76, 255, 0.6);
-  transform: translateY(-2px);
 }
 
 .export-btn:disabled {
@@ -299,5 +297,121 @@
   color: var(--color-text-muted);
   box-shadow: none;
   cursor: not-allowed;
+}
+
+/* Split Button Container */
+.export-split-button {
+  display: flex;
+  width: 100%;
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: visible;
+  box-shadow: 0 4px 15px rgba(107, 76, 255, 0.3);
+  transition: transform var(--transition-normal);
+}
+
+.export-split-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(107, 76, 255, 0.4);
+}
+
+.export-main-btn {
+  flex: 1;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.export-dropdown-trigger {
+  width: 44px;
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.export-dropdown-trigger:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.export-dropdown-trigger:disabled {
+  background: var(--color-border);
+  cursor: not-allowed;
+}
+
+/* Dropdown Menu */
+.export-dropdown-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  animation: slideUp 0.2s ease-out;
+  backdrop-filter: blur(15px);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-item {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-primary);
+}
+
+.dropdown-item svg {
+  color: var(--color-accent);
+}
+
+/* Individual download button styles */
+.download-btn-sidebar {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.download-btn-sidebar:hover {
+  color: var(--color-accent);
+  background: rgba(107, 76, 255, 0.1);
 }
 

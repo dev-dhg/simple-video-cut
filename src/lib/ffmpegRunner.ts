@@ -35,13 +35,15 @@ export const ensureFFmpegLoaded = async (onLog?: (msg: string) => void) => {
 const runNativeFFmpegExport = async (
   state: AppState,
   onProgress: (ratio: number) => void,
-  onLog: (msg: string) => void
+  onLog: (msg: string) => void,
+  segmentsOverride?: AppState['segments']
 ): Promise<Blob> => {
   onLog("Initializing native FFmpeg export...");
   
   const inputPath = state.mediaUri!; 
   const tempPath = await window.electronAPI.invoke('get-temp-path');
   const outputNames: string[] = [];
+  const exportSegments = segmentsOverride || state.segments;
   
   const logHandler = (_event: any, msg: string) => onLog(msg);
   window.electronAPI.on('ffmpeg-log', logHandler);
@@ -62,9 +64,9 @@ const runNativeFFmpegExport = async (
     };
     window.electronAPI.on('ffmpeg-progress-raw', progressHandler);
 
-    for (let i = 0; i < state.segments.length; i++) {
+    for (let i = 0; i < exportSegments.length; i++) {
         currentSegmentIdx = i;
-        const seg = state.segments[i];
+        const seg = exportSegments[i];
         const outPath = `${tempPath}/cut_${Date.now()}_${i}.mp4`;
         outputNames.push(outPath);
 
@@ -99,7 +101,7 @@ const runNativeFFmpegExport = async (
     }
 
     let finalOutputPath = outputNames[0];
-    if (state.mergeCuts && outputNames.length > 1) {
+    if (state.mergeCuts && outputNames.length > 1 && !segmentsOverride) {
       onLog("Merging segments...");
       const listPath = `${tempPath}/list_${Date.now()}.txt`;
       const listContent = outputNames.map(p => `file '${p.replace(/'/g, "'\\''")}'`).join('\n');
@@ -141,11 +143,12 @@ function sanitizeWasmCodec(codec: string): string {
 export const runFFmpegExport = async (
   state: AppState,
   onProgress: (ratio: number) => void,
-  onLog: (msg: string) => void
+  onLog: (msg: string) => void,
+  segmentsOverride?: AppState['segments']
 ): Promise<Blob> => {
   if (isElectron) {
     try {
-      return await runNativeFFmpegExport(state, onProgress, onLog);
+      return await runNativeFFmpegExport(state, onProgress, onLog, segmentsOverride);
     } catch (err) {
       console.error("Native FFmpeg failed, falling back to WASM:", err);
       useAppStore.getState().addToast("Native FFmpeg failed. Falling back to browser-based WASM export...", "warning");
@@ -153,15 +156,17 @@ export const runFFmpegExport = async (
     }
   }
 
-  return await runWasmFFmpegExport(state, onProgress, onLog);
+  return await runWasmFFmpegExport(state, onProgress, onLog, segmentsOverride);
 };
 
 export async function runWasmFFmpegExport(
   state: AppState,
   onProgress: (ratio: number) => void,
-  onLog: (msg: string) => void
+  onLog: (msg: string) => void,
+  segmentsOverride?: AppState['segments']
 ): Promise<Blob> {
-  if (state.segments.length === 0) {
+  const exportSegments = segmentsOverride || state.segments;
+  if (exportSegments.length === 0) {
     throw new Error("No segments to export.");
   }
 
@@ -197,8 +202,8 @@ export async function runWasmFFmpegExport(
     const argsList: string[][] = [];
     const outputNames: string[] = [];
 
-    for (let i = 0; i < state.segments.length; i++) {
-        const seg = state.segments[i];
+    for (let i = 0; i < exportSegments.length; i++) {
+        const seg = exportSegments[i];
         const outName = `cut_${i}.mp4`;
         outputNames.push(outName);
 
@@ -249,7 +254,7 @@ export async function runWasmFFmpegExport(
 
     let finalOutput = outputNames[0];
 
-    if (state.mergeCuts && outputNames.length > 1) {
+    if (state.mergeCuts && outputNames.length > 1 && !segmentsOverride) {
         onLog("Merging segments...");
         let listContent = '';
         for (const name of outputNames) {
